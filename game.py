@@ -1,31 +1,38 @@
-from typing import Optional
-from characters import Player, Enemy, Goblin, Troll, Dragon
-from items import Item
 import json
 import random
+from typing import List, Tuple, Type
+
+from characters import Dragon, Enemy, Goblin, Player, Troll
+from items import EffectType, Item
+
+ENEMY_TYPES_WITH_WEIGHTS: List[Tuple[Type[Enemy], int]] = [
+    (Goblin, 60),
+    (Troll, 30),
+    (Dragon, 10),
+]
+ENEMY_POPULATION = [enemy_type[0] for enemy_type in ENEMY_TYPES_WITH_WEIGHTS]
+ENEMY_WEIGHTS = [enemy_type[1] for enemy_type in ENEMY_TYPES_WITH_WEIGHTS]
+
+AVAILABLE_ITEMS = [
+    Item("Зелье лечения", EffectType.HEAL, 20),
+    Item("Элексир силы", EffectType.BOOST_ATTACK, 5),
+    Item("Свиток защиты", EffectType.BOOST_DEFENSE, 3),
+    Item("Большое зелье лечения", EffectType.HEAL, 40),
+    Item("Мощный эликсир силы", EffectType.BOOST_ATTACK, 8),
+    Item("Мощный свиток защиты", EffectType.BOOST_DEFENSE, 5),
+]
 
 
 def spawn_enemy() -> Enemy:
     """Случайным образом создаёт и возвращает противника: 60% гоблин, 30% тролль, 10% дракон."""
-    roll = random.random()
-    if roll < 0.6:  #60% шанс
-        return Goblin()
-    elif roll < 0.9:  #30% шанс
-        return Troll()
-    else:
-        return Dragon()
+    chosen_enemy_class = random.choices(ENEMY_POPULATION, weights=ENEMY_WEIGHTS, k=1)[0]
+    return chosen_enemy_class()
+
 
 def get_random_item() -> Item:
     """Случайным образом выбирает и возвращает предмет."""
-    items = [
-        Item("Зелье лечения", "heal", 20),
-        Item("Элексир силы", "boost_attack", 5),
-        Item("Свиток защиты", "boost_defense", 3),
-        Item("Большое зелье лечения", "heal", 40),
-        Item("Мощный эликсир силы", "boost_attack", 8),
-        Item("Мощный свиток защиты", "boost_defense", 5)
-    ]
-    return random.choice(items)
+    return random.choice(AVAILABLE_ITEMS)
+
 
 def save_game(player: Player) -> None:
     """
@@ -33,52 +40,58 @@ def save_game(player: Player) -> None:
     Включает основные характеристики и инвентарь.
     """
     save_data = {
-        'name': player.name,
-        'health': player.health,
-        'attack': player.attack_power,
-        'defense': player.defense,
-        'exp': player.exp,
-        'level': player.level,
-        'inventory': [
-            {'name': item.name, 'effect_type': item.effect_type, 'value': item.value}
+        "name": player.name,
+        "health": player.health,
+        "attack": player.attack_power,
+        "defense": player.defense,
+        "exp": player._exp,
+        "level": player._level,
+        "inventory": [
+            {
+                "name": item.name,
+                "effect_type": item.effect_type.value,
+                "value": item.value,
+            }
             for item in player.inventory
-        ]
+        ],
     }
 
     # Сохраняем JSON в файл с кодировкой UTF-8
-    with open('save_game.json', 'w', encoding='utf-8') as f:
+    with open("save_game.json", "w", encoding="utf-8") as f:
         json.dump(save_data, f, ensure_ascii=False, indent=4)
 
     print("Игра сохранена")
 
 
-def load_game() -> Optional[Player]:
+def load_game() -> Player | None:
     """
     Загружает состояние игрока из файла save_game.json.
     В случае неудачи возвращает None.
     """
     try:
         # Чтение данных из файла
-        with open('save_game.json', 'r', encoding='utf-8') as f:
+        with open("save_game.json", "r", encoding="utf-8") as f:
             save_data = json.load(f)
 
         # Восстановление игрока и его характеристик
         player = Player(
-        name=save_data['name'],
-        health=save_data['health'],
-        attack=save_data['attack'],
-        defense=save_data['defense']
+            name=save_data["name"],
+            health=save_data["health"],
+            attack=save_data["attack"],
+            defense=save_data["defense"],
+            exp=save_data["exp"],
+            level=save_data["level"],
         )
-        player.exp = save_data['exp']
-        player.level = save_data['level']
-
         # Восстановление инвентаря из списка предметов
-        for item_data in save_data['inventory']:
-            player.add_item(Item(
-                name=item_data['name'],
-                effect_type=item_data['effect_type'],
-                value=item_data['value']
-            ))
+        for item_data in save_data["inventory"]:
+            effect_type_enum = EffectType(item_data["effect_type"])
+            player.add_item(
+                Item(
+                    name=item_data["name"],
+                    effect_type=effect_type_enum,
+                    value=item_data["value"],
+                )
+            )
 
         print(f"Игра загружена для персонажа {player.name}")
         return player
@@ -87,28 +100,30 @@ def load_game() -> Optional[Player]:
         return None
 
 
-def main_menu() -> Optional[Player]:
+def main_menu() -> Player | None:
     """
     Основное меню игры: выбор нового персонажа, загрузка или выход.
     Возвращает объект игрока или None (если выход).
     """
-    print("\n===Текстовая боёвка===")
-    print("1. Новая игра")
-    print("2. Загрузить игру")
-    print("3. Выйти")
+    while True:
+        print("\n===Текстовая боёвка===")
+        print("1. Новая игра")
+        print("2. Загрузить игру")
+        print("3. Выйти")
 
-    choice = input("> ")
+        choice = input("> ")
 
-    if choice == "1":
-        name = input("Введите имя героя: ")
-        return Player(name)
-    elif choice == "2":
-        return load_game()
-    elif choice == "3":
-        return None
-    else:
-        print("Неверный выбор. Попробуйте снова")
-        return main_menu()
+        if choice == "1":
+            name = input("Введите имя героя: ")
+            return Player(name=name, exp=0, level=1)
+        elif choice == "2":
+            loaded_player = load_game()
+            if loaded_player:
+                return loaded_player
+        elif choice == "3":
+            return None
+        else:
+            print("Неверный выбор. Попробуйте снова")
 
 
 def game_loop() -> None:
@@ -124,7 +139,7 @@ def game_loop() -> None:
 
     # Если у игрока пустой инвентарь — даём стартовый предмет
     if not player.inventory:
-        player.add_item(Item("Зелье лечения", "heal", 20))
+        player.add_item(Item("Зелье лечения", EffectType.HEAL, 20))
 
     enemy = spawn_enemy()
 
@@ -154,16 +169,29 @@ def game_loop() -> None:
 
             elif choice == "2":
                 # Показываем игроку инвентарь и даём выбрать предмет
+                if not player.inventory:
+                    print("Инвентарь пуст")
+                    continue
+
                 player.show_inventory()
-                if player.inventory:
-                    try:
-                        item_index = int(input("Выберите предмет (номер) или 0 для отмены: ")) - 1
-                        if item_index >= 0:
-                            player.use_item(item_index)
-                            if enemy.is_alive():
-                                enemy.attack(player)
-                    except ValueError:
-                        print("Введите число")
+                try:
+                    item_choice = input(
+                        "Выберите предмет (номер) или 0 для отмены: "
+                    ).strip()
+                    if item_choice == "0":
+                        continue
+                    item_index = int(item_choice) - 1
+
+                    if 0 <= item_index < len(player.inventory):
+                        player.use_item(item_index)
+                        if enemy.is_alive():  # Если мы все еще в бою
+                            enemy.attack(player)
+                    else:
+                        print("Неверный номер предмета.")
+                except ValueError:
+                    print("Некорректный ввод. Введите число.")
+                except IndexError:
+                    print("Неверный индекс предмета.")
 
             elif choice == "3":
                 # Просмотр инвентаря
@@ -188,12 +216,12 @@ def game_loop() -> None:
                 print("Неверный выбор. Попробуйте снова")
 
             # Проверяем — побеждён ли враг
-            if not  enemy.is_alive():
+            if not enemy.is_alive():
                 print(f"\nВы победили {enemy.name}")
                 player.gain_exp(enemy.exp_reward)
 
                 # Шанс получить случайный предмет
-                if random.random() < 0.7:   # 70% шанс
+                if random.random() < 0.7:  # 70% шанс
                     item = get_random_item()
                     player.add_item(item)
 
@@ -203,8 +231,9 @@ def game_loop() -> None:
     # Если вышли из цикла — игрок погиб
     print("\n=== ИГРА ОКОНЧЕНА ===")
     print(f"{player.name} пал в бою.")
-    print(f"Итоговый уровень: {player.level}")
-    print(f"Накоплено опыта: {player.exp}")
+    print(f"Итоговый уровень: {player._level}")
+    print(f"Накоплено опыта: {player._exp}")
+
 
 # Точка входа: запуск игры при старте файла
 if __name__ == "__main__":
