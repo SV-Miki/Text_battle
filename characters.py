@@ -1,6 +1,8 @@
-from typing import List
-from items import Item
 import random
+from typing import List
+
+import constants
+from items import Item
 
 
 class Character:
@@ -8,6 +10,7 @@ class Character:
     Базовый класс для всех персонажей (игрок и враги).
     Содержит основные характеристики и методы боя.
     """
+
     def __init__(self, name: str, health: int, attack: int, defense: int) -> None:
         """
         Инициализация персонажа.
@@ -21,12 +24,14 @@ class Character:
         self.attack_power = attack
         self.defense = defense
 
-    def attack(self, target: 'Character') -> None:
+    def attack(self, target: "Character") -> None:
         """
         Атакует другого персонажа.
         :param target: Персонаж, по которому атакуют.
         """
-        damage = max(1, self.attack_power - target.defense) # Урон не может быть меньше 1.
+        damage = max(
+            1, self.attack_power - target.defense
+        )  # Урон не может быть меньше 1.
         print(f"{self.name} атакует {target.name}")
         target.take_damage(damage)
         print(f"{self.name} наносит {damage} урона {target.name}")
@@ -45,18 +50,29 @@ class Character:
 
     def describe(self) -> None:
         """Выводит характеристики персонажа."""
-        print(f"{self.name} | Здоровье: {self.health}, Атака: {self.attack_power}, Защита: {self.defense}")
+        print(
+            f"{self.name} | Здоровье: {self.health}, Атака: {self.attack_power}, Защита: {self.defense}"
+        )
 
 
 class Player(Character):
     """
     Класс игрока. Расширяет Character, добавляя инвентарь, опыт и уровни.
     """
-    def __init__(self, name: str, health: int = 100, attack: int = 10, defense: int = 5) -> None:
+
+    def __init__(
+        self,
+        name: str,
+        health: int = 100,
+        attack: int = 10,
+        defense: int = 5,
+        exp: int = 0,
+        level: int = 1,
+    ) -> None:
         super().__init__(name, health, attack, defense)
         self.inventory: List[Item] = []
-        self.exp = 0
-        self.level = 1
+        self._exp = exp
+        self._level = level
 
     def add_item(self, item: Item) -> None:
         """
@@ -71,11 +87,11 @@ class Player(Character):
         Применяет предмет из инвентаря по индексу.
         :param item_index: Индекс предмета в инвентаре.
         """
-        if 0 <= item_index < len(self.inventory):
+        try:
             item = self.inventory[item_index]
             item.apply(self)
             self.inventory.pop(item_index)
-        else:
+        except IndexError:
             print("Неверный индекс предмета")
 
     def show_inventory(self) -> None:
@@ -85,34 +101,44 @@ class Player(Character):
             return
         print("\n=== Инвентарь ===")
         for i, item in enumerate(self.inventory):
-            print(f"{i+1}. {item}")
+            print(f"{i + 1}. {item}")
 
     def gain_exp(self, amount: int) -> None:
         """
         Получение опыта игроком.
         :param amount: Количество опыта.
         """
-        self.exp += amount
-        print(f"{self.name} получил {amount} опыта. Всего: {self.exp}")
+        self._exp += amount
+        print(f"{self.name} получил {amount} опыта. Всего: {self._exp}")
 
-        exp_for_next_level = self.level * 100
-        if self.exp >= exp_for_next_level:
+        exp_for_next_level = self._level * constants.EXP_PER_LEVEL
+        if self._exp >= exp_for_next_level:
             self.level_up()
 
     def level_up(self) -> None:
         """Повышает уровень игрока и увеличивает характеристики."""
-        self.level += 1
-        self.health += 20
-        self.attack_power += 5
-        self.defense += 3
-        print(f"{self.name} достиг уровня {self.level}.")
-        print("Здоровье +20, Атака +5, Защита +3")
-        print(f"Новые характеристики. Здоровье: {self.health}, Атака: {self.attack_power}, Защита: {self.defense}")
+        self._level += 1
+        self.health += constants.HEALTH_INCREMENT
+        self.attack_power += constants.ATTACK_INCREMENT
+        self.defense += constants.DEFENSE_INCREMENT
+        print(f"{self.name} достиг уровня {self._level}.")
+        print(
+            f"Здоровье +{constants.HEALTH_INCREMENT}, Атака +{constants.ATTACK_INCREMENT}, Защита +{constants.DEFENSE_INCREMENT}"
+        )
+        print(
+            f"Новые характеристики. Здоровье: {self.health}, Атака: {self.attack_power}, Защита: {self.defense}"
+        )
 
     def describe(self) -> None:
         """Выводит расширенное описание игрока с уровнем и опытом."""
         super().describe()
-        print(f"Уровень: {self.level}, Опыт: {self.exp}/{self.level * 100}")
+        print(
+            f"Уровень: {self._level}, Опыт: {self._exp}/{self._level * constants.EXP_PER_LEVEL}"
+        )
+
+    @property
+    def exp(self):
+        return self._exp
 
 
 class Enemy(Character):
@@ -120,7 +146,16 @@ class Enemy(Character):
     Базовый класс врага, расширяет Character.
     Содержит награду за победу.
     """
-    def __init__(self, name: str, health: int, attack: int, defense: int, exp_reward: int) -> None:
+
+    def __init__(
+        self,
+        name: str,
+        health: int,
+        attack: int,
+        defense: int,
+        exp_reward: int,
+        taunts: List[str],
+    ) -> None:
         """
         Инициализация врага.
         :param name: Имя врага.
@@ -128,60 +163,65 @@ class Enemy(Character):
         :param attack: Атака.
         :param defense: Защита.
         :param exp_reward: Опыт за победу.
+        :param taunts: Список боевых реплик.
         """
         super().__init__(name, health, attack, defense)
-        self.exp_reward = exp_reward    #Количество опыта за победу над врагом
+        self.exp_reward = exp_reward  # Количество опыта за победу над врагом
+        self.taunts_list = taunts
 
     def get_taunt(self) -> str:
         """Возвращает боевую реплику врага."""
-        return "..."
+        if not self.taunts_list:
+            return "..."
+        return random.choice(self.taunts_list)
+
 
 class Goblin(Enemy):
     """
     Класс для врага - гоблина.
     """
+
     def __init__(self) -> None:
         """Инициализация гоблина с фиксированными параметрами."""
-        super().__init__("Goblin", health=30, attack=7, defense=2, exp_reward=20)
-
-    def get_taunt(self) -> str:
-        """Возвращает случайную угрозу."""
-        taunts = [
-            "Я украду твои вещи!",
-            "Еще один глупый искатель приключений!"
-        ]
-        return random.choice(taunts)
+        super().__init__(
+            name=self.__class__.__name__,
+            health=constants.GOBLIN_HEALTH,
+            attack=constants.GOBLIN_ATTACK,
+            defense=constants.GOBLIN_DEFENSE,
+            exp_reward=constants.GOBLIN_EXP_REWARD,
+            taunts=constants.GOBLIN_TAUNTS,
+        )
 
 
 class Troll(Enemy):
     """
     Класс для врага - тролля.
     """
+
     def __init__(self) -> None:
         """Инициализация тролля с фиксированными параметрами."""
-        super().__init__("Troll", health=70, attack=12, defense=6, exp_reward=50)
-
-    def get_taunt(self) -> str:
-        """Возвращает случайную угрозу."""
-        taunts = [
-            "Я раздавлю тебя!",
-            "Ты слишком мал для меня!"
-        ]
-        return random.choice(taunts)
+        super().__init__(
+            name=self.__class__.__name__,
+            health=constants.TROLL_HEALTH,
+            attack=constants.TROLL_ATTACK,
+            defense=constants.TROLL_DEFENSE,
+            exp_reward=constants.TROLL_EXP_REWARD,
+            taunts=constants.TROLL_TAUNTS,
+        )
 
 
 class Dragon(Enemy):
     """
     Класс для врага - дракона.
     """
+
     def __init__(self) -> None:
         """Инициализация дракона с фиксированными параметрами."""
-        super().__init__("Dragon", health=150, attack=20, defense=10, exp_reward=150)
-
-    def get_taunt(self) -> str:
-        """Возвращает случайную угрозу."""
-        taunts = [
-            "Ты осмелился потревожить мой сон?",
-            "Ты не уйдешь отсюда живым!"
-        ]
-        return random.choice(taunts)
+        super().__init__(
+            name=self.__class__.__name__,
+            health=constants.DRAGON_HEALTH,
+            attack=constants.DRAGON_ATTACK,
+            defense=constants.DRAGON_DEFENSE,
+            exp_reward=constants.DRAGON_EXP_REWARD,
+            taunts=constants.DRAGON_TAUNTS,
+        )
