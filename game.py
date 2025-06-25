@@ -52,7 +52,7 @@ def save_game(player: Player) -> None:
                 "effect_type": item.effect_type.value,
                 "value": item.value,
             }
-            for item in player.inventory
+            for item in player._inventory
         ],
     }
 
@@ -84,11 +84,10 @@ def load_game() -> Player | None:
         )
         # Восстановление инвентаря из списка предметов
         for item_data in save_data["inventory"]:
-            effect_type_enum = EffectType(item_data["effect_type"])
             player.add_item(
                 Item(
                     name=item_data["name"],
-                    effect_type=effect_type_enum,
+                    effect_type=EffectType(item_data["effect_type"]),
                     value=item_data["value"],
                 )
             )
@@ -126,6 +125,62 @@ def main_menu() -> Player | None:
             print("Неверный выбор. Попробуйте снова")
 
 
+def handle_attack(player: Player, enemy: Enemy) -> None:
+    """Обрабатывает действие атаки."""
+    player.attack(enemy)
+    if enemy.is_alive():
+        enemy.attack(player)
+
+
+def handle_use_item(player: Player, enemy: Enemy) -> None:
+    """Обрабатывает действие использования предмета."""
+    if not player._inventory:
+        print("Инвентарь пуст")
+        return
+
+    player.show_inventory()
+    item_choice = input("Выберите предмет (номер) или 0 для отмены: ").strip()
+    if item_choice == "0":
+        return
+
+    try:
+        item_index = int(item_choice) - 1
+    except ValueError:
+        print("Некорректный ввод. Введите число.")
+        return
+
+    # Проверка индекса и использование предмета
+    if 0 <= item_index < len(player._inventory):
+        player.use_item(item_index)
+        if enemy.is_alive():  # Если мы все еще в бою
+            enemy.attack(player)
+    else:
+        print("Неверный номер предмета.")
+
+
+def handle_show_inventory(player: Player) -> None:
+    """Обрабатывает действие просмотра инвентаря."""
+    player.show_inventory()
+
+
+def handle_show_status(player: Player, enemy: Enemy) -> None:
+    """Обрабатывает действие показа статуса."""
+    print("\n=== Статус персонажей ===")
+    player.describe()
+    enemy.describe()
+
+
+def handle_save_game(player: Player) -> None:
+    """Обрабатывает действие сохранения игры."""
+    save_game(player)
+
+
+def handle_exit_game() -> None:
+    """Обрабатывает выход из игры."""
+    print("Выход из игры. До новых встреч.")
+    exit()
+
+
 def game_loop() -> None:
     """
     Главный игровой цикл. Управляет ходом игры: меню, бой, инвентарь, сохранение и окончание.
@@ -138,11 +193,19 @@ def game_loop() -> None:
     print("Приключение начинается\n")
 
     # Если у игрока пустой инвентарь — даём стартовый предмет
-    if not player.inventory:
+    if not player._inventory:
         player.add_item(Item("Зелье лечения", EffectType.HEAL, 20))
 
     enemy = spawn_enemy()
 
+    actions = {
+        "1": handle_attack,
+        "2": handle_use_item,
+        "3": handle_show_inventory,
+        "4": handle_show_status,
+        "5": handle_save_game,
+        "6": handle_exit_game,
+    }
     # Основной цикл — пока игрок жив
     while player.is_alive():
         print(f"\nВы встретили {enemy.name}")
@@ -162,56 +225,9 @@ def game_loop() -> None:
 
             choice = input("> ")
 
-            if choice == "1":
-                player.attack(enemy)
-                if enemy.is_alive():
-                    enemy.attack(player)
-
-            elif choice == "2":
-                # Показываем игроку инвентарь и даём выбрать предмет
-                if not player.inventory:
-                    print("Инвентарь пуст")
-                    continue
-
-                player.show_inventory()
-                try:
-                    item_choice = input(
-                        "Выберите предмет (номер) или 0 для отмены: "
-                    ).strip()
-                    if item_choice == "0":
-                        continue
-                    item_index = int(item_choice) - 1
-
-                    if 0 <= item_index < len(player.inventory):
-                        player.use_item(item_index)
-                        if enemy.is_alive():  # Если мы все еще в бою
-                            enemy.attack(player)
-                    else:
-                        print("Неверный номер предмета.")
-                except ValueError:
-                    print("Некорректный ввод. Введите число.")
-                except IndexError:
-                    print("Неверный индекс предмета.")
-
-            elif choice == "3":
-                # Просмотр инвентаря
-                player.show_inventory()
-
-            elif choice == "4":
-                # Показ информации о герое и враге
-                print("\n=== Статус персонажей ===")
-                player.describe()
-                enemy.describe()
-
-            elif choice == "5":
-                # Сохраняем игру
-                save_game(player)
-
-            elif choice == "6":
-                # Выход из игры
-                print("Выход из игры. До новых встреч.")
-                exit()
-
+            handler = actions.get(choice)
+            if handler:
+                handler(player, enemy)
             else:
                 print("Неверный выбор. Попробуйте снова")
 

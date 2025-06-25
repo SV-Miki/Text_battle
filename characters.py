@@ -70,7 +70,7 @@ class Player(Character):
         level: int = 1,
     ) -> None:
         super().__init__(name, health, attack, defense)
-        self.inventory: List[Item] = []
+        self._inventory: List[Item] = []
         self._exp = exp
         self._level = level
 
@@ -79,7 +79,7 @@ class Player(Character):
         Добавляет предмет в инвентарь.
         :param item: Добавляемый предмет.
         """
-        self.inventory.append(item)
+        self._inventory.append(item)
         print(f"{self.name} получил предмет: {item}")
 
     def use_item(self, item_index: int) -> None:
@@ -88,19 +88,19 @@ class Player(Character):
         :param item_index: Индекс предмета в инвентаре.
         """
         try:
-            item = self.inventory[item_index]
+            item = self._inventory[item_index]
             item.apply(self)
-            self.inventory.pop(item_index)
+            self._inventory.pop(item_index)
         except IndexError:
             print("Неверный индекс предмета")
 
     def show_inventory(self) -> None:
         """Выводит список предметов в инвентаре."""
-        if not self.inventory:
+        if not self._inventory:
             print("Инвентарь пуст")
             return
         print("\n=== Инвентарь ===")
-        for i, item in enumerate(self.inventory):
+        for i, item in enumerate(self._inventory):
             print(f"{i + 1}. {item}")
 
     def gain_exp(self, amount: int) -> None:
@@ -136,10 +136,6 @@ class Player(Character):
             f"Уровень: {self._level}, Опыт: {self._exp}/{self._level * constants.EXP_PER_LEVEL}"
         )
 
-    @property
-    def exp(self):
-        return self._exp
-
 
 class Enemy(Character):
     """
@@ -167,13 +163,13 @@ class Enemy(Character):
         """
         super().__init__(name, health, attack, defense)
         self.exp_reward = exp_reward  # Количество опыта за победу над врагом
-        self.taunts_list = taunts
+        self.taunts = taunts
 
     def get_taunt(self) -> str:
         """Возвращает боевую реплику врага."""
-        if not self.taunts_list:
+        if not self.taunts:
             return "..."
-        return random.choice(self.taunts_list)
+        return random.choice(self.taunts)
 
 
 class Goblin(Enemy):
