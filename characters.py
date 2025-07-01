@@ -30,7 +30,7 @@ class Character:
         :param target: Персонаж, по которому атакуют.
         """
         damage = max(
-            1, self.attack_power - target.defense
+            constants.MIN_DAMAGE, self.attack_power - target.defense
         )  # Урон не может быть меньше 1.
         print(f"{self.name} атакует {target.name}")
         target.take_damage(damage)
@@ -63,11 +63,11 @@ class Player(Character):
     def __init__(
         self,
         name: str,
-        health: int = 100,
-        attack: int = 10,
-        defense: int = 5,
-        exp: int = 0,
-        level: int = 1,
+        health: int = constants.PLAYER_BASE_HEALTH,
+        attack: int = constants.PLAYER_BASE_ATTACK,
+        defense: int = constants.PLAYER_BASE_DEFENSE,
+        exp: int = constants.PLAYER_BASE_EXP,
+        level: int = constants.PLAYER_BASE_LEVEL,
     ) -> None:
         super().__init__(name, health, attack, defense)
         self._inventory: List[Item] = []

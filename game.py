@@ -2,6 +2,7 @@ import json
 import random
 from typing import List, Tuple, Type
 
+import constants
 from characters import Dragon, Enemy, Goblin, Player, Troll
 from items import EffectType, Item
 
@@ -125,130 +126,134 @@ def main_menu() -> Player | None:
             print("Неверный выбор. Попробуйте снова")
 
 
-def handle_attack(player: Player, enemy: Enemy) -> None:
-    """Обрабатывает действие атаки."""
-    player.attack(enemy)
-    if enemy.is_alive():
-        enemy.attack(player)
+class GameLoop:
+    """Класс для управления игровым циклом, хранит player и enemy."""
 
+    def __init__(self, player: Player) -> None:
+        self.player = player
+        self.enemy = spawn_enemy()
 
-def handle_use_item(player: Player, enemy: Enemy) -> None:
-    """Обрабатывает действие использования предмета."""
-    if not player._inventory:
-        print("Инвентарь пуст")
-        return
+    def handle_attack(self) -> None:
+        """Обрабатывает действие атаки."""
+        self.player.attack(self.enemy)
+        if self.enemy.is_alive():
+            self.enemy.attack(self.player)
 
-    player.show_inventory()
-    item_choice = input("Выберите предмет (номер) или 0 для отмены: ").strip()
-    if item_choice == "0":
-        return
+    def handle_use_item(self) -> None:
+        """Обрабатывает действие использования предмета."""
+        if not self.player._inventory:
+            print("Инвентарь пуст")
+            return
 
-    try:
-        item_index = int(item_choice) - 1
-    except ValueError:
-        print("Некорректный ввод. Введите число.")
-        return
+        self.player.show_inventory()
+        item_choice = input("Выберите предмет (номер) или 0 для отмены: ").strip()
+        if item_choice == "0":
+            return
 
-    # Проверка индекса и использование предмета
-    if 0 <= item_index < len(player._inventory):
-        player.use_item(item_index)
-        if enemy.is_alive():  # Если мы все еще в бою
-            enemy.attack(player)
-    else:
-        print("Неверный номер предмета.")
+        try:
+            item_index = int(item_choice) - 1
+        except ValueError:
+            print("Некорректный ввод. Введите число.")
+            return
 
+        # Проверка индекса и использование предмета
+        if 0 <= item_index < len(self.player._inventory):
+            self.player.use_item(item_index)
+            if self.enemy.is_alive():  # Если мы все еще в бою
+                self.enemy.attack(self.player)
+        else:
+            print("Неверный номер предмета.")
 
-def handle_show_inventory(player: Player) -> None:
-    """Обрабатывает действие просмотра инвентаря."""
-    player.show_inventory()
+    def handle_show_inventory(self) -> None:
+        """Обрабатывает действие просмотра инвентаря."""
+        self.player.show_inventory()
 
+    def handle_show_status(self) -> None:
+        """Обрабатывает действие показа статуса."""
+        print("\n=== Статус персонажей ===")
+        self.player.describe()
+        self.enemy.describe()
 
-def handle_show_status(player: Player, enemy: Enemy) -> None:
-    """Обрабатывает действие показа статуса."""
-    print("\n=== Статус персонажей ===")
-    player.describe()
-    enemy.describe()
+    def handle_save_game(self) -> None:
+        """Обрабатывает действие сохранения игры."""
+        save_game(self.player)
 
+    def handle_exit_game(self) -> None:
+        """Обрабатывает выход из игры."""
+        print("Выход из игры. До новых встреч.")
+        exit()
 
-def handle_save_game(player: Player) -> None:
-    """Обрабатывает действие сохранения игры."""
-    save_game(player)
+    def run(self) -> None:
+        """
+        Главный игровой цикл. Управляет ходом игры: меню, бой, инвентарь, сохранение и окончание.
+        """
+        print(f"\nДобро пожаловать, {self.player.name}")
+        print("Приключение начинается\n")
 
+        # Если у игрока пустой инвентарь — даём стартовый предмет
+        if not self.player._inventory:
+            self.player.add_item(Item("Зелье лечения", EffectType.HEAL, 20))
 
-def handle_exit_game() -> None:
-    """Обрабатывает выход из игры."""
-    print("Выход из игры. До новых встреч.")
-    exit()
+        actions = {
+            "1": self.handle_attack,
+            "2": self.handle_use_item,
+            "3": self.handle_show_inventory,
+            "4": self.handle_show_status,
+            "5": self.handle_save_game,
+            "6": self.handle_exit_game,
+        }
+        # Основной цикл — пока игрок жив
+        while self.player.is_alive():
+            print(f"\nВы встретили {self.enemy.name}")
+            print(f"{self.enemy.name}: '{self.enemy.get_taunt()}'")
+
+            battle_active = True
+
+            # Цикл сражения с одним противником
+            while battle_active and self.player.is_alive() and self.enemy.is_alive():
+                print("\nВаши действия:")
+                print("1. Атаковать")
+                print("2. Использовать предмет")
+                print("3. Посмотреть инвентарь")
+                print("4. Показать статус")
+                print("5. Сохранить игру")
+                print("6. Выйти из игры")
+
+                choice = input("> ")
+
+                if handler := actions.get(choice):
+                    handler()
+                else:
+                    print("Неверный выбор. Попробуйте снова")
+
+                # Проверяем — побеждён ли враг
+                if not self.enemy.is_alive():
+                    print(f"\nВы победили {self.enemy.name}")
+                    self.player.gain_exp(self.enemy.exp_reward)
+
+                    # Шанс получить случайный предмет
+                    if random.random() < constants.ITEM_DROP_CHANCE:  # 70% шанс
+                        item = get_random_item()
+                        self.player.add_item(item)
+
+                    self.enemy = spawn_enemy()
+                    battle_active = False
+
+        # Если вышли из цикла — игрок погиб
+        print("\n=== ИГРА ОКОНЧЕНА ===")
+        print(f"{self.player.name} пал в бою.")
+        print(f"Итоговый уровень: {self.player._level}")
+        print(f"Накоплено опыта: {self.player._exp}")
 
 
 def game_loop() -> None:
-    """
-    Главный игровой цикл. Управляет ходом игры: меню, бой, инвентарь, сохранение и окончание.
-    """
+    """Запуск игрового цикла."""
     player = main_menu()
     if not player:
         return
 
-    print(f"\nДобро пожаловать, {player.name}")
-    print("Приключение начинается\n")
-
-    # Если у игрока пустой инвентарь — даём стартовый предмет
-    if not player._inventory:
-        player.add_item(Item("Зелье лечения", EffectType.HEAL, 20))
-
-    enemy = spawn_enemy()
-
-    actions = {
-        "1": handle_attack,
-        "2": handle_use_item,
-        "3": handle_show_inventory,
-        "4": handle_show_status,
-        "5": handle_save_game,
-        "6": handle_exit_game,
-    }
-    # Основной цикл — пока игрок жив
-    while player.is_alive():
-        print(f"\nВы встретили {enemy.name}")
-        print(f"{enemy.name}: '{enemy.get_taunt()}'")
-
-        battle_active = True
-
-        # Цикл сражения с одним противником
-        while battle_active and player.is_alive() and enemy.is_alive():
-            print("\nВаши действия:")
-            print("1. Атаковать")
-            print("2. Использовать предмет")
-            print("3. Посмотреть инвентарь")
-            print("4. Показать статус")
-            print("5. Сохранить игру")
-            print("6. Выйти из игры")
-
-            choice = input("> ")
-
-            handler = actions.get(choice)
-            if handler:
-                handler(player, enemy)
-            else:
-                print("Неверный выбор. Попробуйте снова")
-
-            # Проверяем — побеждён ли враг
-            if not enemy.is_alive():
-                print(f"\nВы победили {enemy.name}")
-                player.gain_exp(enemy.exp_reward)
-
-                # Шанс получить случайный предмет
-                if random.random() < 0.7:  # 70% шанс
-                    item = get_random_item()
-                    player.add_item(item)
-
-                enemy = spawn_enemy()
-                battle_active = False
-
-    # Если вышли из цикла — игрок погиб
-    print("\n=== ИГРА ОКОНЧЕНА ===")
-    print(f"{player.name} пал в бою.")
-    print(f"Итоговый уровень: {player._level}")
-    print(f"Накоплено опыта: {player._exp}")
+    game = GameLoop(player)
+    game.run()
 
 
 # Точка входа: запуск игры при старте файла
