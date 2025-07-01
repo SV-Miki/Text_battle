@@ -17,6 +17,13 @@ class Item:
     Эффекты: лечение, усиление атаки, усиление защиты.
     """
 
+    # Константы класса для описаний эффектов
+    EFFECT_DESCRIPTIONS = {
+        EffectType.HEAL: "восстанавливает {} здоровья",
+        EffectType.BOOST_ATTACK: "увеличивает атаку на {}",
+        EffectType.BOOST_DEFENSE: "увеличивает защиту на {}",
+    }
+
     # _effect_handlers - это словарь,
     # где ключи - это EffectType, а значения - функции,
     # которые принимают Character и возвращают None.
@@ -69,8 +76,7 @@ class Item:
 
         :param target: Персонаж, к которому применяется предмет
         """
-        handler = self._effect_handlers.get(self.effect_type)
-        if handler:
+        if handler := self._effect_handlers.get(self.effect_type):
             handler(target)
         else:
             print(f"Неизвестный эффект для предмета {self.name}")
@@ -81,9 +87,11 @@ class Item:
 
         :return: Строка с описанием предмета и его эффекта
         """
-        effect_descriptions = {
-            EffectType.HEAL: f"восстанавливает {self.value} здоровья",
-            EffectType.BOOST_ATTACK: f"увеличивает атаку на {self.value}",
-            EffectType.BOOST_DEFENSE: f"увеличивает защиту на {self.value}",
-        }
-        return f"{self.name} ({effect_descriptions.get(self.effect_type, 'неизвестный эффект')})"
+        description_template = self.EFFECT_DESCRIPTIONS.get(
+            self.effect_type, "неизвестный эффект"
+        )
+        if description_template != "неизвестный эффект":
+            description = description_template.format(self.value)
+        else:
+            description = description_template
+        return f"{self.name} ({description})"
