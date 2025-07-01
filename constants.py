@@ -17,8 +17,18 @@ DRAGON_ATTACK = 20
 DRAGON_DEFENSE = 10
 DRAGON_EXP_REWARD = 150
 
+# Игрок (базовые характеристики)
+PLAYER_BASE_HEALTH = 100
+PLAYER_BASE_ATTACK = 10
+PLAYER_BASE_DEFENSE = 5
+PLAYER_BASE_EXP = 0
+PLAYER_BASE_LEVEL = 1
+
 # Экспо
 EXP_PER_LEVEL = 100
+
+# Боевая система
+MIN_DAMAGE = 1
 
 # Список реплик для врагов
 GOBLIN_TAUNTS = ["Я украду твои вещи!", "Еще один глупый искатель приключений!"]
@@ -29,3 +39,6 @@ DRAGON_TAUNTS = ["Ты осмелился потревожить мой сон?"
 HEALTH_INCREMENT = 20
 ATTACK_INCREMENT = 5
 DEFENSE_INCREMENT = 3
+
+# Шансы и вероятности
+ITEM_DROP_CHANCE = 0.7
